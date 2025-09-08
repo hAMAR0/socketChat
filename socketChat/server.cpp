@@ -1,15 +1,40 @@
 #include <iostream>
 #include <WinSock2.h>
 #include <WS2tcpip.h>
+#include <thread>
 
 
 #pragma comment(lib, "Ws2_32.lib")
 
 #define LISTEN_PORT 8888
-#define MAX_CON 1
+#define MAX_CON 5
 #define BUFFER_LEN 512
 
+void handleClient(SOCKET clientSocket) {
+	char receiveBuffer[BUFFER_LEN];
+	int result;
+	do {
+		result = recv(clientSocket, receiveBuffer, BUFFER_LEN, 0);
 
+		if (result > 0) {
+			//std::cout << "Bytes received - " << result << std::endl;
+
+			if (send(clientSocket, receiveBuffer, result, 0) == SOCKET_ERROR) {		// echo back
+				//std::cout << "Echo failed" << std::endl;
+				break;
+			}
+		}
+		else if (result == 0) {
+			std::cout << "Closing connection" << std::endl;
+		}
+		else {
+			//std::cout << "Receive failed";
+			break;
+		}
+	} while (result > 0);
+	shutdown(clientSocket, SD_SEND);
+	closesocket(clientSocket);
+}
 
 int main() {
 	int result;
@@ -78,48 +103,17 @@ int main() {
 
 
 	// Accept the connection
-	SOCKET acceptSocket;
-	acceptSocket = accept(serverSocket, NULL, NULL);
-	if (acceptSocket == INVALID_SOCKET) {
-		std::cout << WSAGetLastError() << std::endl;
-		closesocket(serverSocket);;
-		WSACleanup();
-		return 0;
+
+	while (true) {
+		SOCKET clientSocket = accept(serverSocket, NULL, NULL);
+		if (clientSocket != INVALID_SOCKET) {
+			std::thread	clientThread(handleClient, clientSocket);	 // Receive data on a thread til the peer shuts down
+			clientThread.detach();
+		}
 	}
-	else {
-		std::cout << "Accepted the connection request" << std::endl;
-	}
+	
 
 
-	// Receive data til the peer shuts down
-
-	char receiveBuffer[BUFFER_LEN];
-	do {
-		result = recv(acceptSocket, receiveBuffer, BUFFER_LEN, 0);
-
-		if (result > 0) {
-			std::cout << "Bytes received - " << result << std::endl;
-
-			if (send(acceptSocket, receiveBuffer, result, 0) == SOCKET_ERROR) {		// echo back
-				std::cout << "Echo failed" << std::endl;
-				closesocket(acceptSocket);
-				WSACleanup();
-				return 0;
-			}
-		}
-		else if (result == 0) {
-			std::cout << "Closing connection" << std::endl;
-		}
-		else {
-			std::cout << "Receive failed";
-			closesocket(acceptSocket);;
-			WSACleanup();
-			return 0;
-		}
-	} while (result > 0);
-
-
-	closesocket(acceptSocket);
 	closesocket(serverSocket);
 	WSACleanup();
 	return 0;
