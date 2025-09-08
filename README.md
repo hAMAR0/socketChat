@@ -1,5 +1,5 @@
 # TODO (top priority)
-+ client.cpp
++ ~~client.cpp~~
 + CLI chatting capabilities
 
 # TODO (low priority)

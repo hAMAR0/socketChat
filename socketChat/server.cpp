@@ -7,10 +7,12 @@
 
 #define LISTEN_PORT 8888
 #define MAX_CON 1
+#define BUFFER_LEN 512
+
 
 
 int main() {
-
+	int result;
 	// WS2_32.dll initialization 
 	WSADATA wsaData;
 	int wsaResult;
@@ -50,8 +52,8 @@ int main() {
 	saServer.sin_port = htons(LISTEN_PORT);	// from big-endian to little-endian (network byte order)
 
 	//int bindResult = bind(serverSocket, (sockaddr*)&saServer, sizeof(saServer));	// (sockaddr*)&saServer - casts sockaddr_in sa Server to generic sockaddr C style
-	int bindResult = bind(serverSocket, reinterpret_cast<sockaddr*>(&saServer), sizeof(saServer));	// using c++ style cast instead
-	if (bindResult == SOCKET_ERROR) {
+	result = bind(serverSocket, reinterpret_cast<sockaddr*>(&saServer), sizeof(saServer));	// using c++ style cast instead
+	if (result == SOCKET_ERROR) {
 		std::cout << WSAGetLastError() << std::endl;
 		closesocket(serverSocket);
 		WSACleanup();
@@ -63,8 +65,8 @@ int main() {
 
 
 	// Listen on socket
-	int listenResult = listen(serverSocket, MAX_CON);
-	if (listenResult == SOCKET_ERROR) {
+	result = listen(serverSocket, MAX_CON);
+	if (result == SOCKET_ERROR) {
 		std::cout << WSAGetLastError() << std::endl;
 		closesocket(serverSocket);
 		WSACleanup();
@@ -88,6 +90,35 @@ int main() {
 		std::cout << "Accepted the connection request" << std::endl;
 	}
 
+
+	// Receive data til the peer shuts down
+
+	char receiveBuffer[BUFFER_LEN];
+	do {
+		result = recv(acceptSocket, receiveBuffer, BUFFER_LEN, 0);
+
+		if (result > 0) {
+			std::cout << "Bytes received - " << result << std::endl;
+			for (char i : receiveBuffer) {
+				std::cout << i;
+			}
+			std::cout << std::endl;
+
+			if (send(acceptSocket, receiveBuffer, result, 0) == SOCKET_ERROR) {		// echo back
+				std::cout << "Echo failed" << std::endl;
+				closesocket(serverSocket);
+				WSACleanup();
+				return 0;
+			}
+		}
+		else if (result == 0) std::cout << "Closing connection" << std::endl;
+		else {
+			std::cout << "Receive failed";
+			closesocket(serverSocket);
+			WSACleanup();
+			return 0;
+		}
+	} while (result > 0);
 
 	closesocket(serverSocket);
 	WSACleanup();
