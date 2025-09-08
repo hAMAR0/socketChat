@@ -82,7 +82,7 @@ int main() {
 	acceptSocket = accept(serverSocket, NULL, NULL);
 	if (acceptSocket == INVALID_SOCKET) {
 		std::cout << WSAGetLastError() << std::endl;
-		closesocket(serverSocket);
+		closesocket(serverSocket);;
 		WSACleanup();
 		return 0;
 	}
@@ -99,27 +99,27 @@ int main() {
 
 		if (result > 0) {
 			std::cout << "Bytes received - " << result << std::endl;
-			for (char i : receiveBuffer) {
-				std::cout << i;
-			}
-			std::cout << std::endl;
 
 			if (send(acceptSocket, receiveBuffer, result, 0) == SOCKET_ERROR) {		// echo back
 				std::cout << "Echo failed" << std::endl;
-				closesocket(serverSocket);
+				closesocket(acceptSocket);
 				WSACleanup();
 				return 0;
 			}
 		}
-		else if (result == 0) std::cout << "Closing connection" << std::endl;
+		else if (result == 0) {
+			std::cout << "Closing connection" << std::endl;
+		}
 		else {
 			std::cout << "Receive failed";
-			closesocket(serverSocket);
+			closesocket(acceptSocket);;
 			WSACleanup();
 			return 0;
 		}
 	} while (result > 0);
 
+
+	closesocket(acceptSocket);
 	closesocket(serverSocket);
 	WSACleanup();
 	return 0;

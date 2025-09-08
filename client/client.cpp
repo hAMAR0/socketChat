@@ -78,9 +78,9 @@ int main() {
 
 	do {
 		result = recv(connectSocket, receiveBuffer, BUFFER_LEN, 0);
-		if (result > 0) std::cout << "bytes received " << result << std::endl;
+		if (result > 0) std::cout << "Bytes received " << result << std::endl;
 		else if (result == 0) std::cout << "Connection closed by server" << std::endl;
-		else std::cout << "Receiving failed" << std::endl;
+		else std::cout << "Receiving failed" << WSAGetLastError() << std::endl;
 	} while (result > 0);
 
 
