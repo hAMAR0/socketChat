@@ -2,6 +2,7 @@
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 #include <thread>
+#include <fstream>
 
 
 #pragma comment(lib, "Ws2_32.lib")
@@ -9,6 +10,17 @@
 #define LISTEN_PORT 8888
 #define MAX_CON 5
 #define BUFFER_LEN 512
+
+
+
+void writeFile(char buffer[], int size) {
+	std::ofstream chat("../chat", std::ios_base::app);
+	for (int i=0; i < size; i++) {
+		chat << buffer[i];
+	}
+	chat << '\n';
+	chat.close();
+}
 
 void handleClient(SOCKET clientSocket) {
 	char receiveBuffer[BUFFER_LEN];
@@ -18,7 +30,7 @@ void handleClient(SOCKET clientSocket) {
 
 		if (result > 0) {
 			//std::cout << "Bytes received - " << result << std::endl;
-
+			writeFile(receiveBuffer, result);
 			if (send(clientSocket, receiveBuffer, result, 0) == SOCKET_ERROR) {		// echo back
 				//std::cout << "Echo failed" << std::endl;
 				break;

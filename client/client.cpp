@@ -52,7 +52,6 @@ int main() {
 	}
 
 	// Send data
-
 	const char* buffer = "testline";	//const because "testline" stored in read-only memory section
 
 	result = send(connectSocket, buffer, strlen(buffer), 0);
