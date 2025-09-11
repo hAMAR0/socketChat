@@ -3,6 +3,7 @@
 #include <WS2tcpip.h>
 #include <thread>
 #include <fstream>
+#include <vector>
 
 
 
@@ -13,6 +14,20 @@
 #define BUFFER_LEN 512
 
 
+
+struct Clients
+{
+	SOCKET socket;
+	std::string name;
+};
+
+class ChatRoom {
+	std::vector<Clients> clients;
+public:
+	void addClient(Clients client) {
+		this->clients.push_back(client);
+	}
+};
 
 void writeFile(char buffer[], int size) {
 	std::ofstream chat("../chat", std::ios_base::app);
@@ -114,6 +129,10 @@ int main() {
 		std::cout << "Listening on socket with maximum amount of simultaneous connections:  " << MAX_CON << std::endl;
 	}
 
+
+	// Create a default chatroom
+
+	ChatRoom defaultRoom;
 
 	// Accept the connection
 
