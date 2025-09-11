@@ -4,6 +4,8 @@
 #include <thread>
 #include <fstream>
 #include <vector>
+#include <map>
+#include <mutex>
 
 
 
@@ -19,16 +21,25 @@ struct Clients
 {
 	SOCKET socket;
 	std::string name;
+	std::string currentRoom;
 };
 
 class ChatRoom {
-	std::vector<Clients> clients;
 public:
-	void addClient(Clients client) {
-		this->clients.push_back(client);
-	}
+	std::map<std::string, std::vector<Clients>> roomClients;
 };
 
+ChatRoom defaultRoom;
+
+// adding client's socket to a room
+void addtoRoom(SOCKET& clientSocket, std::string roomName) {
+	Clients client;
+	client.currentRoom = roomName;
+	client.socket = clientSocket;
+	defaultRoom.roomClients["default"].push_back(client);
+}
+
+// extracting message from package and writing it to file
 void writeFile(char buffer[], int size) {
 	std::ofstream chat("../chat", std::ios_base::app);
 	for (int i=0; i < size; i++) {
@@ -45,10 +56,8 @@ void handleClient(SOCKET clientSocket) {
 		result = recv(clientSocket, receiveBuffer, BUFFER_LEN, 0);
 
 		if (result > 0) {
-			//std::cout << "Bytes received - " << result << std::endl;
 			writeFile(receiveBuffer, result);
 			if (send(clientSocket, receiveBuffer, result, 0) == SOCKET_ERROR) {		// echo back
-				//std::cout << "Echo failed" << std::endl;
 				break;
 			}
 		}
@@ -56,12 +65,17 @@ void handleClient(SOCKET clientSocket) {
 			std::cout << "Closing connection" << std::endl;
 		}
 		else {
-			//std::cout << "Receive failed";
 			break;
 		}
 	} while (result > 0);
-	shutdown(clientSocket, SD_SEND);
-	closesocket(clientSocket);
+
+
+	for (auto& client : defaultRoom.roomClients["default"]) {
+		if (client.socket == clientSocket) {
+			shutdown(clientSocket, SD_SEND);
+			closesocket(clientSocket);
+		}
+	}
 }
 
 int main() {
@@ -130,15 +144,14 @@ int main() {
 	}
 
 
-	// Create a default chatroom
-
-	ChatRoom defaultRoom;
-
 	// Accept the connection
 
 	while (true) {
 		SOCKET clientSocket = accept(serverSocket, NULL, NULL);
 		if (clientSocket != INVALID_SOCKET) {
+
+			addtoRoom(clientSocket, "default");
+
 			std::thread	clientThread(handleClient, clientSocket);	 // Receive data on a thread til the peer shuts down
 			clientThread.detach();
 		}

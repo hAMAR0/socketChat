@@ -2,6 +2,7 @@
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 #include <Windows.h>
+#include <thread>
 
 
 #pragma comment(lib, "Ws2_32.lib")
@@ -15,6 +16,32 @@ void uInput(char* buffer, int size) {
 	fgets(buffer, size, stdin);
 }
 
+
+void socketShutdown(SOCKET& socket) {
+	if (shutdown(socket, 1) == SOCKET_ERROR) {
+		std::cout << WSAGetLastError() << std::endl;
+		closesocket(socket);
+		WSACleanup();
+	}
+}
+
+void socketReceiving(SOCKET& socket) {
+	char rBuffer[BUFFER_LEN];
+	int result;
+	do {
+		result = recv(socket, rBuffer, BUFFER_LEN, 0);
+		if (result > 0) {
+			for (int i = 0; i < result; i++) {
+				std::cout << rBuffer[i];
+			}
+		}
+		else if (result == 0) std::cout << "Connection closed by server" << std::endl;
+		else std::cout << "Receiving failed" << WSAGetLastError() << std::endl;
+	} while (result > 0);
+
+
+}
+
 void sendData(SOCKET connectSocket, char* iBuffer) {
 	// Send data
 	const char* buffer = iBuffer;	//const because "testline" stored in read-only memory section
@@ -23,27 +50,13 @@ void sendData(SOCKET connectSocket, char* iBuffer) {
 		closesocket(connectSocket);
 		WSACleanup();
 	}
-	//std::cout << "bytes send - " << result << std::endl;
 
 	// Close connection FOR SENDING after all data was sent
 	// 0 to stop receiving, 1 to stop sending, 2 for both
-	if (shutdown(connectSocket, 1) == SOCKET_ERROR) {
-		std::cout << WSAGetLastError() << std::endl;
-		closesocket(connectSocket);
-		WSACleanup();
-	}
+	socketShutdown(connectSocket);
 
 	// Receiving data til server closes the connection
-
-	char receiveBuffer[BUFFER_LEN];
-	int result;
-	do {
-		result = recv(connectSocket, receiveBuffer, BUFFER_LEN, 0);
-		if (result > 0) std::cout << "Bytes received " << result << std::endl;
-		else if (result == 0) std::cout << "Connection closed by server" << std::endl;
-		else std::cout << "Receiving failed" << WSAGetLastError() << std::endl;
-	} while (result > 0);
-
+	socketReceiving(connectSocket);
 }
 
 int main() {
