@@ -1,11 +1,50 @@
 #include <iostream>
 #include <WinSock2.h>
 #include <WS2tcpip.h>
+#include <Windows.h>
+
 
 #pragma comment(lib, "Ws2_32.lib")
 
 #define CON_PORT 8888
 #define BUFFER_LEN 512
+
+
+void uInput(char* buffer, int size) {
+	std::cout << "Enter message: " << std::endl;
+	fgets(buffer, size, stdin);
+}
+
+void sendData(SOCKET connectSocket, char* iBuffer) {
+	// Send data
+	const char* buffer = iBuffer;	//const because "testline" stored in read-only memory section
+
+	if (send(connectSocket, buffer, strlen(buffer), 0) == SOCKET_ERROR) {
+		closesocket(connectSocket);
+		WSACleanup();
+	}
+	//std::cout << "bytes send - " << result << std::endl;
+
+	// Close connection FOR SENDING after all data was sent
+	// 0 to stop receiving, 1 to stop sending, 2 for both
+	if (shutdown(connectSocket, 1) == SOCKET_ERROR) {
+		std::cout << WSAGetLastError() << std::endl;
+		closesocket(connectSocket);
+		WSACleanup();
+	}
+
+	// Receiving data til server closes the connection
+
+	char receiveBuffer[BUFFER_LEN];
+	int result;
+	do {
+		result = recv(connectSocket, receiveBuffer, BUFFER_LEN, 0);
+		if (result > 0) std::cout << "Bytes received " << result << std::endl;
+		else if (result == 0) std::cout << "Connection closed by server" << std::endl;
+		else std::cout << "Receiving failed" << WSAGetLastError() << std::endl;
+	} while (result > 0);
+
+}
 
 int main() {
 	int result;
@@ -51,37 +90,9 @@ int main() {
 		std::cout << "Connection to server successful" << std::endl;
 	}
 
-	// Send data
-	const char* buffer = "testline";	//const because "testline" stored in read-only memory section
-
-	result = send(connectSocket, buffer, strlen(buffer), 0);
-	if (result == SOCKET_ERROR) {
-		closesocket(connectSocket);
-		WSACleanup();
-		return 0;
-	}
-	std::cout << "bytes send - " << result << std::endl;
-
-	// Close connection FOR SENDING after all data was sent
-	result = shutdown(connectSocket, 1);	// 0 to stop receiving, 1 to stop sending, 2 for both
-	if (result == SOCKET_ERROR) {
-		std::cout << WSAGetLastError() << std::endl;
-		closesocket(connectSocket);
-		WSACleanup();
-		return 0;
-	}
-
-	// Receiving data til server closes the connection
-
-	char receiveBuffer[BUFFER_LEN];
-
-	do {
-		result = recv(connectSocket, receiveBuffer, BUFFER_LEN, 0);
-		if (result > 0) std::cout << "Bytes received " << result << std::endl;
-		else if (result == 0) std::cout << "Connection closed by server" << std::endl;
-		else std::cout << "Receiving failed" << WSAGetLastError() << std::endl;
-	} while (result > 0);
-
+	char buffer[BUFFER_LEN];
+	uInput(buffer, BUFFER_LEN);
+	sendData(connectSocket, buffer);
 
 	closesocket(connectSocket);
 	WSACleanup();
