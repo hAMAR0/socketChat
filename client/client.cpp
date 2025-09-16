@@ -40,13 +40,18 @@ void sendData(SOCKET connectSocket, char* iBuffer) {
 	std::thread receivingThread(socketReceiving, std::ref(connectSocket));
 	receivingThread.detach();
 
-	std::string msg;
-
+	std::string msg, roomName;
 	while (true) {
 		std::cout << "Enter message: " << std::endl;
 		std::getline(std::cin, msg);
 		if (msg == "/quit") {
 			break;
+		}
+		else if (msg == "/room") {
+			std::cout << "Enter room's name: " << std::endl;
+			std::getline(std::cin, roomName);
+			roomName = "/room " + roomName;
+			send(connectSocket, roomName.c_str(), roomName.length(), 0);
 		}
 		if (send(connectSocket, msg.c_str(), msg.length(), 0) == SOCKET_ERROR) {
 			std::cout << "Send failed: " << WSAGetLastError() << std::endl;
@@ -100,7 +105,7 @@ int main() {
 	}
 
 	char buffer[BUFFER_LEN];
-	std::cout << "Type /quit to exit" << std::endl;
+	std::cout << "Type /quit to exit\nType /room to join/create a room" << std::endl;
 	sendData(connectSocket, buffer);
 
 	closesocket(connectSocket);

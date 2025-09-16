@@ -12,7 +12,7 @@
 #pragma comment(lib, "Ws2_32.lib")
 
 #define LISTEN_PORT 8888
-#define MAX_CON 5
+#define MAX_CON 50
 #define BUFFER_LEN 512
 
 struct Clients
@@ -27,14 +27,16 @@ public:
 	std::map<std::string, std::vector<Clients>> roomClients;
 };
 
+std::vector<ChatRoom> rooms;
 ChatRoom defaultRoom;
+
 
 // adding client's socket to a room
 void addtoRoom(SOCKET& clientSocket, std::string roomName) {
 	Clients client;
 	client.currentRoom = roomName;
 	client.socket = clientSocket;
-	defaultRoom.roomClients["default"].push_back(client);
+	//defaultRoom.roomClients["default"].push_back(client);
 }
 
 // extracting message from package and writing it to file
@@ -51,17 +53,30 @@ void writeFile(char buffer[], int size) {
 	chat.close();
 }
 
-void handleClient(SOCKET clientSocket) {
+void handleClient(SOCKET clientSocket) {	// add chatrooms creation, add echoing within chatrooms only
 	char receiveBuffer[BUFFER_LEN];
 	int result;
 	do {
 		result = recv(clientSocket, receiveBuffer, BUFFER_LEN, 0);
 
 		if (result > 0) {
-			writeFile(receiveBuffer, result);
-			for (auto& client : defaultRoom.roomClients["default"]) {
-				if (send(client.socket, receiveBuffer, result, 0) == SOCKET_ERROR) {		// echo back
-					break;
+			if (strncmp(receiveBuffer, "/room", 6)) {
+				std::string rname = "";
+				for (int i = 6; i < result; i++) {
+					rname = rname + receiveBuffer[i];
+				}
+
+
+
+			}
+			else {
+				writeFile(receiveBuffer, result);
+				for (auto& client : defaultRoom.roomClients["default"]) {
+					if (client.socket != clientSocket) {
+						if (send(client.socket, receiveBuffer, result, 0) == SOCKET_ERROR) {
+							break;
+						}
+					}
 				}
 			}
 		}
@@ -83,6 +98,9 @@ void handleClient(SOCKET clientSocket) {
 }
 
 int main() {
+
+	rooms.push_back(defaultRoom);
+
 	int result;
 	// WS2_32.dll initialization 
 	WSADATA wsaData;
@@ -150,15 +168,12 @@ int main() {
 	while (true) {
 		SOCKET clientSocket = accept(serverSocket, NULL, NULL);
 		if (clientSocket != INVALID_SOCKET) {
-
 			addtoRoom(clientSocket, "default");
 
 			std::thread	clientThread(handleClient, clientSocket);	 // Receive data on a thread til the peer shuts down
 			clientThread.detach();
 		}
 	}
-	
-
 
 	closesocket(serverSocket);
 	WSACleanup();
