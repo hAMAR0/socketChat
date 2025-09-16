@@ -15,11 +15,9 @@
 #define MAX_CON 5
 #define BUFFER_LEN 512
 
-
-
 struct Clients
 {
-	SOCKET socket;
+	SOCKET socket = NULL;
 	std::string name;
 	std::string currentRoom;
 };
@@ -40,7 +38,11 @@ void addtoRoom(SOCKET& clientSocket, std::string roomName) {
 }
 
 // extracting message from package and writing it to file
+
+std::mutex fileMutex;
+
 void writeFile(char buffer[], int size) {
+	std::lock_guard<std::mutex> lock(fileMutex);
 	std::ofstream chat("../chat", std::ios_base::app);
 	for (int i=0; i < size; i++) {
 		chat << buffer[i];
@@ -57,8 +59,10 @@ void handleClient(SOCKET clientSocket) {
 
 		if (result > 0) {
 			writeFile(receiveBuffer, result);
-			if (send(clientSocket, receiveBuffer, result, 0) == SOCKET_ERROR) {		// echo back
-				break;
+			for (auto& client : defaultRoom.roomClients["default"]) {
+				if (send(client.socket, receiveBuffer, result, 0) == SOCKET_ERROR) {		// echo back
+					break;
+				}
 			}
 		}
 		else if (result == 0) {
@@ -89,9 +93,6 @@ int main() {
 	if (wsaResult != 0) {
 		std::cout << "WS2_32.dll is missing" << std::endl;
 		return 0;
-	}
-	else {
-		std::cout << "DLL Status: " << wsaData.szSystemStatus << std::endl;
 	}
 
 

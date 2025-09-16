@@ -3,18 +3,13 @@
 #include <WS2tcpip.h>
 #include <Windows.h>
 #include <thread>
+#include <string>
 
 
 #pragma comment(lib, "Ws2_32.lib")
 
 #define CON_PORT 8888
 #define BUFFER_LEN 512
-
-
-void uInput(char* buffer, int size) {
-	std::cout << "Enter message: " << std::endl;
-	fgets(buffer, size, stdin);
-}
 
 
 void socketShutdown(SOCKET& socket) {
@@ -34,29 +29,33 @@ void socketReceiving(SOCKET& socket) {
 			for (int i = 0; i < result; i++) {
 				std::cout << rBuffer[i];
 			}
+			std::cout << std::endl;
 		}
 		else if (result == 0) std::cout << "Connection closed by server" << std::endl;
 		else std::cout << "Receiving failed" << WSAGetLastError() << std::endl;
 	} while (result > 0);
-
-
 }
 
 void sendData(SOCKET connectSocket, char* iBuffer) {
-	// Send data
-	const char* buffer = iBuffer;	//const because "testline" stored in read-only memory section
+	std::thread receivingThread(socketReceiving, std::ref(connectSocket));
+	receivingThread.detach();
 
-	if (send(connectSocket, buffer, strlen(buffer), 0) == SOCKET_ERROR) {
-		closesocket(connectSocket);
-		WSACleanup();
+	std::string msg;
+
+	while (true) {
+		std::cout << "Enter message: " << std::endl;
+		std::getline(std::cin, msg);
+		if (msg == "/quit") {
+			break;
+		}
+		if (send(connectSocket, msg.c_str(), msg.length(), 0) == SOCKET_ERROR) {
+			std::cout << "Send failed: " << WSAGetLastError() << std::endl;
+			break;
+		}
 	}
-
 	// Close connection FOR SENDING after all data was sent
 	// 0 to stop receiving, 1 to stop sending, 2 for both
 	socketShutdown(connectSocket);
-
-	// Receiving data til server closes the connection
-	socketReceiving(connectSocket);
 }
 
 int main() {
@@ -70,9 +69,6 @@ int main() {
 	if (wsaResult != 0) {
 		std::cout << "WS2_32.dll is missing" << std::endl;
 		return 0;
-	}
-	else {
-		std::cout << "DLL Status: " << wsaData.szSystemStatus << std::endl;
 	}
 
 
@@ -104,7 +100,7 @@ int main() {
 	}
 
 	char buffer[BUFFER_LEN];
-	uInput(buffer, BUFFER_LEN);
+	std::cout << "Type /quit to exit" << std::endl;
 	sendData(connectSocket, buffer);
 
 	closesocket(connectSocket);
